@@ -8,15 +8,21 @@ module.exports = function () {
         else {
             req.stream.pause();
             var host = req.host.replace(/:\d+$/, '');
-            var target = coach.routes[host];
+            var r = coach.routes[host];
             
-            if (target) {
+            if (r) {
                 // todo: connection pooling
-                net.createConnection(target, function (s) {
+                var c = r.host
+                    ? net.createConnection(r.port, r.host)
+                    : net.createConnection(r.port)
+                ;
+                
+                c.on('connect', function () {
                     for (var i = 0; i < req.buffers.length; i++) {
-                        s.write(req.buffers[i]);
+                        c.write(req.buffers[i]);
                     }
-                    req.stream.pipe(s);
+                    req.stream.pipe(c);
+                    c.pipe(req.stream);
                     req.stream.resume();
                 });
             }
@@ -24,7 +30,7 @@ module.exports = function () {
         }
     });
     
-    var coach = Coach(server);
+    var coach = new Coach(server);
     return coach;
 };
 
@@ -32,6 +38,17 @@ function Coach (server) {
     this.server = server;
     this.routes = {};
 }
+
+Coach.prototype.listen = function () {
+    var s = this.server;
+    s.listen.apply(s, arguments);
+    return this;
+};
+
+Coach.prototype.close = function () {
+    var s = this.server;
+    s.close.apply(s, arguments);
+};
 
 Coach.prototype.add = function (hostname, host, port) {
     if (!port) {
