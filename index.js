@@ -50,13 +50,25 @@ Coach.prototype.close = function () {
     s.close.apply(s, arguments);
 };
 
-Coach.prototype.add = function (hostname, host, port) {
-    if (!port) {
-        port = host;
-        host = undefined;
+Coach.prototype.add = function (from, to) {
+    var dst = {};
+    if (typeof to === 'object') {
+        dst = to;
     }
-    
-    this.routes[hostname] = { host : host, port : port };
+    else if (typeof to === 'number') {
+        dst.port = to;
+    }
+    else if (typeof to === 'string') {
+        if (to.match(/^\d+$/)) {
+            dst.port = parseInt(to, 10);
+        }
+        else {
+            var s = to.split(':');
+            dst.host = s[0];
+            dst.port = s[1];
+        }
+    }
+    this.routes[from] = dst;
 };
 
 Coach.prototype.swap = function (src, dst) {
