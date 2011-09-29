@@ -2,7 +2,7 @@ stagecoach
 ==========
 
 Shuffle servers around to make staging instances super simple for continuous
-integration.
+integration and load balancing.
 
 examples
 ========

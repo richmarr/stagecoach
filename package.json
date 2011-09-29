@@ -23,6 +23,9 @@
     "scripts" : {
         "test" : "tap test/*.js"
     },
+    "dependencies" : {
+        "prehost" : "0.0.x"
+    },
     "devDependencies" : {
         "tap" : "0.0.x"
     },
