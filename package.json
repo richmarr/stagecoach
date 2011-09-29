@@ -1,0 +1,38 @@
+{
+    "name" : "stagecoach",
+    "description" : "Shuffle servers around to make staging instances super simple for continuous integration and load balancing.",
+    "version" : "0.0.0",
+    "repository" : {
+        "type" : "git",
+        "url" : "git://github.com/substack/stagecoach.git"
+    },
+    "main" : "index.js",
+    "keywords" : [
+        "continuous",
+        "integration",
+        "staging",
+        "deploy",
+        "load",
+        "balancer"
+    ],
+    "directories" : {
+        "lib" : ".",
+        "example" : "example",
+        "test" : "test"
+    },
+    "scripts" : {
+        "test" : "tap test/*.js"
+    },
+    "devDependencies" : {
+        "tap" : "0.0.x"
+    },
+    "engines" : {
+        "node" : ">=0.4.0"
+    },
+    "license" : "MIT",
+    "author" : {
+        "name" : "James Halliday",
+        "email" : "mail@substack.net",
+        "url" : "http://substack.net"
+    }
+}
