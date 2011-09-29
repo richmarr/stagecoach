@@ -13,8 +13,8 @@ module.exports = function () {
             if (r) {
                 // todo: connection pooling
                 var c = r.host
-                    ? net.createConnection(r.port, r.host)
-                    : net.createConnection(r.port)
+                    ? net.createConnection(r.port || coach.port, r.host)
+                    : net.createConnection(r.port || coach.port)
                 ;
                 
                 c.on('connect', function () {
@@ -37,10 +37,12 @@ module.exports = function () {
 function Coach (server) {
     this.server = server;
     this.routes = {};
+    this.port = null;
 }
 
-Coach.prototype.listen = function () {
+Coach.prototype.listen = function (port) {
     var s = this.server;
+    this.port = port;
     s.listen.apply(s, arguments);
     return this;
 };
