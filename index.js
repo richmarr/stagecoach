@@ -79,3 +79,8 @@ Coach.prototype.swap = function (x, y) {
     this.routes[x] = ry;
     this.routes[y] = rx;
 };
+
+Coach.prototype.replace = function (from, to) {
+    this.routes[from] = this.routes[to];
+    delete this.routes[from];
+};
