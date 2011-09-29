@@ -47,7 +47,7 @@ test('forward', function (t) {
             });
             
             res.on('end', function () {
-                t.equal(s, 'servers[0]');
+                t.equal(s.trim(), 'servers[0]');
                 s0.close();
                 done();
             });
@@ -65,7 +65,7 @@ test('forward', function (t) {
             });
             
             res.on('end', function () {
-                t.equal(s, 'servers[1]');
+                t.equal(s.trim(), 'servers[1]');
                 s1.close();
                 done();
             });
