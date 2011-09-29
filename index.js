@@ -73,5 +73,9 @@ Coach.prototype.add = function (from, to) {
     this.routes[from] = dst;
 };
 
-Coach.prototype.swap = function (src, dst) {
+Coach.prototype.swap = function (x, y) {
+    var rx = this.routes[x];
+    var ry = this.routes[y];
+    this.routes[x] = ry;
+    this.routes[y] = rx;
 };
