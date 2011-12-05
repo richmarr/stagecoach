@@ -1,86 +1,93 @@
-var spawn = require('child_process').spawn;
-var prehost = require('prehost');
 var net = require('net');
+var fs = require('fs');
+var spawn = require('child_process').spawn;
+var path = require('path');
+var mkdirp = require('mkdirp');
 
-module.exports = function () {
-    var server = prehost(function (err, req) {
-        if (err) console.error(err)
-        else {
-            req.stream.pause();
-            var host = req.host.replace(/:\d+$/, '');
-            var r = coach.routes[host];
-            
-            if (r) {
-                // todo: connection pooling
-                var c = r.host
-                    ? net.createConnection(r.port || coach.port, r.host)
-                    : net.createConnection(r.port || coach.port)
-                ;
-                
-                c.on('connect', function () {
-                    for (var i = 0; i < req.buffers.length; i++) {
-                        c.write(req.buffers[i]);
-                    }
-                    req.stream.pipe(c);
-                    c.pipe(req.stream);
-                    req.stream.resume();
-                });
-            }
-            else console.error('No such host: ' + host)
-        }
-    });
+var repoRoot = __dirname + '/repos';
+var deployRoot = __dirname + '/deploys';
+
+var pushover = require('pushover');
+var repos = pushover(repoRoot);
+
+var gitEmit = require('git-emit');
+var git = fs.readdirSync(repoRoot).reduce(function (acc, repo) {
+    acc[repo] = gitEmit(path.join(repoRoot, repo));
+    acc[repo].on('update', onupdate.bind(null, repo));
+    return acc;
+}, {});
+
+function onupdate (repo, update) {
+    var branch = update.arguments[0].split('/')[2];
+    var commit = update.arguments[2];
     
-    var coach = new Coach(server);
-    return coach;
-};
-
-function Coach (server) {
-    this.server = server;
-    this.routes = {};
-    this.port = null;
+    var deployDir = path.join(deployRoot, repo, commit);
+    mkdirp(deployDir, 0700, function (err) {
+        if (err) update.reject(500, err)
+        else deploy(repo, branch, commit, function (err) {
+            if (err) update.reject(500, err)
+            else update.accept()
+        });
+    });
 }
 
-Coach.prototype.listen = function (port) {
-    var s = this.server;
-    this.port = port;
-    s.listen.apply(s, arguments);
-    return this;
-};
+function deploy (repo, branch, commit, cb) {
+    var deployDir = path.join(deployRoot, repo, commit);
+    var repoDir = path.join(repoRoot, repo);
+    
+    var ps = spawn('git', [ 'clone', '-b', branch, repoDir, deployDir ]);
+    ps.stdout.pipe(process.stdout, { end : false });
+    ps.stderr.pipe(process.stdout, { end : false });
+    
+    var dotDir = path.join(deployDir, '.stagecoach');
+    ps.on('exit', function (code) {
+        if (code !== 0) cb('clone exited with code ' + code);
+        else path.exists(path.join(dotDir, 'start'), function (ex) {
+console.log(dotDir);
+            if (!ex) return;
+            
+            var port = Math.floor(Math.random() * 5e4 + 1e4);
+            routes[commit] = port;
+            
+            var cwd = process.cwd();
+            process.chdir(deployDir);
+            var ps = spawn(path.join(dotDir, 'start'), [ port ]);
+            process.chdir(cwd);
+            
+            ps.stdout.pipe(process.stdout, { end : false });
+            ps.stderr.pipe(process.stdout, { end : false });
+            
+            cb(null);
+        })
+    });
+}
 
-Coach.prototype.close = function () {
-    var s = this.server;
-    s.close.apply(s, arguments);
-};
-
-Coach.prototype.add = function (from, to) {
-    var dst = {};
-    if (typeof to === 'object') {
-        dst = to;
+repos.on('push', function (repo) {
+    if (!git[repo]) {
+        git[repo] = gitEmit(path.join(repoRoot, repo));
+        git[repo].on('update', onupdate.bind(null, repo))
+        onupdate(repo, {
+            arguments : [ 'refs/head/master', null, 'master' ],
+            accept : function () {},
+        });
     }
-    else if (typeof to === 'number') {
-        dst.port = to;
-    }
-    else if (typeof to === 'string') {
-        if (to.match(/^\d+$/)) {
-            dst.port = parseInt(to, 10);
-        }
-        else {
-            var s = to.split(':');
-            dst.host = s[0];
-            dst.port = s[1];
-        }
-    }
-    this.routes[from] = dst;
-};
+});
 
-Coach.prototype.swap = function (x, y) {
-    var rx = this.routes[x];
-    var ry = this.routes[y];
-    this.routes[x] = ry;
-    this.routes[y] = rx;
-};
+var routes = {};
+var bouncy = require('bouncy');
+bouncy(function (req, bounce) {
+    bounce(routes[req.headers.host] || 9045)
+}).listen(7070);
 
-Coach.prototype.replace = function (from, to) {
-    this.routes[from] = this.routes[to];
-    delete this.routes[from];
-};
+var http = require('http');
+var url = require('url');
+http.createServer(function (req, res) {
+    var u = url.parse(req.url);
+    
+    if (req.method === 'GET' && u.pathname === '/') {
+        res.setHeader('content-type', 'application/json');
+        res.write(JSON.stringify(routes, undefined, 2));
+        res.end('\r\n');
+    }
+    else repos.handle(req, res)
+}).listen(9045);
