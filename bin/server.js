@@ -1,8 +1,12 @@
 var net = require('net');
 var fs = require('fs');
-var spawn = require('child_process').spawn;
 var path = require('path');
+
+var spawn = require('child_process').spawn;
+var exec = require('child_process').exec;
+
 var mkdirp = require('mkdirp');
+var chdir = require('chdir');
 
 var repoRoot = __dirname + '/repos';
 var deployRoot = __dirname + '/deploys';
@@ -39,25 +43,30 @@ function deploy (repo, branch, commit, cb) {
     ps.stdout.pipe(process.stdout, { end : false });
     ps.stderr.pipe(process.stdout, { end : false });
     
-    var dotDir = path.join(deployDir, '.stagecoach');
+    var jsonFile = path.join(deployDir, 'deploy.json');
+    
     ps.on('exit', function (code) {
         if (code !== 0) cb('clone exited with code ' + code);
-        else path.exists(path.join(dotDir, 'start'), function (ex) {
-console.log(dotDir);
-            if (!ex) return;
-            
-            var port = Math.floor(Math.random() * 5e4 + 1e4);
-            routes[commit] = port;
-            
-            var cwd = process.cwd();
-            process.chdir(deployDir);
-            var ps = spawn(path.join(dotDir, 'start'), [ port ]);
-            process.chdir(cwd);
-            
-            ps.stdout.pipe(process.stdout, { end : false });
-            ps.stderr.pipe(process.stdout, { end : false });
-            
-            cb(null);
+        else path.exists(jsonFile, function (ex) {
+            if (!ex) cb('no deploy.json file present')
+            else fs.readFile(jsonFile, function (err, body) {
+                try { var config = JSON.parse(body) }
+                catch (err) { return cb(err) }
+                if (!config.start) return cb('no start field present')
+                
+                var port = Math.floor(Math.random() * 5e4 + 1e4);
+                routes[commit] = port;
+                
+                chdir(deployDir, function () {
+                    var cmd = config.start.split(' ').concat(port);
+                    var ps = spawn(cmd[0], cmd.slice(1));
+                    
+                    ps.stdout.pipe(process.stdout, { end : false });
+                    ps.stderr.pipe(process.stdout, { end : false });
+                });
+                
+                cb(null);
+            });
         })
     });
 }
@@ -66,9 +75,19 @@ repos.on('push', function (repo) {
     if (!git[repo]) {
         git[repo] = gitEmit(path.join(repoRoot, repo));
         git[repo].on('update', onupdate.bind(null, repo))
-        onupdate(repo, {
-            arguments : [ 'refs/head/master', null, 'master' ],
-            accept : function () {},
+        
+        chdir(path.join(repoRoot, repo), function () {
+            var cmd = 'git log -n1 --pretty="format:%H"';
+            exec(cmd, function (err, stdout, stderr) {
+                var commit = stdout.trim();
+                onupdate(repo, {
+                    arguments : [ 'refs/head/master', null, commit ],
+                    accept : function () {},
+                    reject : function (code, err) {
+                        console.error([ err, code ].filter(Boolean).join(' '));
+                    },
+                });
+            });
         });
     }
 });

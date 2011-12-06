@@ -1,19 +1,20 @@
 {
     "name" : "stagecoach",
-    "description" : "Shuffle servers around to make staging instances super simple for continuous integration and load balancing.",
+    "description" : "git-based zero-downtime continuous integration and deployment",
     "version" : "0.0.0",
     "repository" : {
         "type" : "git",
         "url" : "git://github.com/substack/stagecoach.git"
     },
-    "main" : "index.js",
+    "bin" : {
+        "stagecoach" : "bin/server.js"
+    },
     "keywords" : [
         "continuous",
         "integration",
+        "deployment",
         "staging",
-        "deploy",
-        "load",
-        "balancer"
+        "deploy"
     ],
     "directories" : {
         "lib" : ".",
@@ -27,7 +28,8 @@
         "bouncy" : "1.0.x",
         "git-emit" : "0.0.x",
         "pushover" : "0.1.x",
-        "mkdirp" : "0.2.x"
+        "mkdirp" : "0.2.x",
+        "chdir" : "0.0.x"
     },
     "devDependencies" : {
         "tap" : "0.0.x"
