@@ -30,6 +30,8 @@ Create a `deploy.json` file in a git repo with a `"start"` key:
 { "start" : "node server.js" }
 ```
 
+The `"start"` command will be passed a port to listen on as its first argument.
+
 Fire up a new git deploy server using the `stagecoach` command:
 
     stagecoach
